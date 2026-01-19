@@ -35,14 +35,14 @@ def diffusion_collate_fn(batch):
         batch_classes.append(padded_labels)
         batch_masks.append(mask)
 
-        images = torch.stack(images, dim= 0)
-        gt_boxes = torch.stack(batch_boxes, dim= 0)
-        gt_labels = torch.stack(batch_classes, dim= 0)
-        gt_masks = torch.stack(batch_masks, dim= 0)
+    images = torch.stack(images, dim= 0)
+    gt_boxes = torch.stack(batch_boxes, dim= 0)
+    gt_labels = torch.stack(batch_classes, dim= 0)
+    gt_masks = torch.stack(batch_masks, dim= 0)
 
-        return{
-            "images": images,
-            "gt_boxes": gt_boxes,
-            "gt_labels": gt_labels,
-            "gt_masks": gt_masks,
-        }
+    return{
+        "images": images,
+        "gt_boxes": gt_boxes,
+        "gt_labels": gt_labels,
+        "gt_masks": gt_masks,
+    }
