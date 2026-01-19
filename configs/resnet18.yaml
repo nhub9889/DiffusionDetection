@@ -8,18 +8,18 @@ model:
     name: "fpn"
     out_channels: 256
     use_bias: True
-  head:
-    num_proposals: 300
-    hidden_dim: 256
-    dim_feedforward: 512
-    num_heads: 4
-    num_classes: 80
-    dropout: 0.3
+head:
+  num_proposals: 300
+  hidden_dim: 256
+  dim_feedforward: 512
+  num_heads: 4
+  num_classes: 80
+  dropout: 0.3
 
-    num_cls: 1
-    num_reg: 3
-    num_dynamic: 2
-    dim_dynamic: 64
+  num_cls: 1
+  num_reg: 3
+  num_dynamic: 2
+  dim_dynamic: 64
 matcher:
   cost_class: 2.0
   cost_bbox: 5.0
