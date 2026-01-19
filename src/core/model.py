@@ -14,7 +14,7 @@ class DiffusionDetModel(nn.Module):
         with open(cfg_path, 'r') as f:
             self.cfg = yaml.safe_load(f)
         self.encoder = Encoder(self.cfg['model'])
-        fpn_strides = [4, 8, 16, 32]
+        self.fpn_strides = [4, 8, 16, 32]
 
         head_cfg = self.cfg['head']
         self.head = DynamicHead(
