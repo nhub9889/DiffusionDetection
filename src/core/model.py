@@ -3,9 +3,9 @@ import torch.nn as nn
 import math
 import yaml
 
-from encoder import Encoder
-from head import DynamicHead
-from detector import SetCriterionLight, HungarianMatcherLight
+from .encoder import Encoder
+from .head import DynamicHead
+from .detector import SetCriterionLight, HungarianMatcherLight
 
 
 class DiffusionDetModel(nn.Module):
