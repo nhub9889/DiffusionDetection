@@ -4,8 +4,12 @@ import time
 import datetime
 import os
 import argparse
-import torchvision.transforms as T
 
+# Import torchvision v2
+from torchvision.transforms import v2 as T
+from torchvision import tv_tensors
+
+# Import module của bạn
 from src.core.model import DiffusionDetModel
 from src.data.dataloader import DataLoader
 from src.data.coco.coco_dataset import CocoDetection
@@ -13,12 +17,40 @@ from src.data.coco.coco_dataset import CocoDetection
 
 def get_transform(train=True):
     transforms = []
-    transforms.append(T.ToTensor())
-    transforms.append(T.Resize((640, 640), antialias=True))
     if train:
         transforms.append(T.RandomHorizontalFlip(0.5))
-    transforms.append(T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]))
+        # T.RandomPhotometricDistort() # Có thể bật nếu muốn augment màu
+
+    transforms.append(T.Resize((640, 640), antialias=True))
+
+    transforms.append(T.Compose([
+        T.ToImage(),
+        T.ToDtype(torch.float32, scale=True),
+        T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+    ]))
+
+    # Quan trọng: Format box lại về dạng Tensor thuần để Model DiffusionDet hiểu
+    # (Vì model của bạn có thể chưa hỗ trợ class tv_tensors.BoundingBoxes đầu vào)
+    transforms.append(T.SanitizeBoundingBox())
+
     return T.Compose(transforms)
+
+
+# Hàm collate cần xử lý dictionary target
+def collate_fn(batch):
+    images = []
+    targets = []
+    for img, target in batch:
+        images.append(img)
+
+        # Nếu target['boxes'] là tv_tensors, chuyển về tensor thường để tránh lỗi model
+        if isinstance(target['boxes'], tv_tensors.BoundingBoxes):
+            target['boxes'] = target['boxes'].as_subclass(torch.Tensor)
+
+        targets.append(target)
+
+    images = torch.stack(images, dim=0)
+    return images, targets
 
 
 def train_one_epoch(model, optimizer, data_loader, device, epoch, print_freq=10):
@@ -41,7 +73,7 @@ def train_one_epoch(model, optimizer, data_loader, device, epoch, print_freq=10)
 
         optimizer.zero_grad()
         losses.backward()
-        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=0.1)
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)  # Tăng clip lên xíu
         optimizer.step()
 
         total_loss += losses.item()
@@ -56,6 +88,7 @@ def train_one_epoch(model, optimizer, data_loader, device, epoch, print_freq=10)
     print(f"Epoch {epoch} finished. Avg Loss: {avg_loss:.4f}. Time: {time.time() - start_time:.2f}s")
     return avg_loss
 
+
 def main(args):
     device = torch.device(args.device)
     print(f"Using device: {device}")
@@ -67,13 +100,10 @@ def main(args):
     model = DiffusionDetModel(args.config)
     model.to(device)
 
-    if args.resume:
-        if os.path.isfile(args.resume):
-            print(f"Loading checkpoint from {args.resume}")
-            checkpoint = torch.load(args.resume, map_location='cpu')
-            model.load_state_dict(checkpoint['model'])
-        else:
-            print(f"No checkpoint found at {args.resume}")
+    if args.resume and os.path.isfile(args.resume):
+        checkpoint = torch.load(args.resume, map_location='cpu')
+        model.load_state_dict(checkpoint['model'])
+        print(f"Loaded checkpoint {args.resume}")
 
     print("Loading data...")
     dataset_train = CocoDetection(
@@ -83,15 +113,17 @@ def main(args):
         return_masks=False
     )
 
-    data_loader_train = DataLoader(
+    print(f"Dataset size: {len(dataset_train)}")
+
+    data_loader_train = torch.utils.data.DataLoader(
         dataset_train,
         batch_size=args.batch_size,
         shuffle=True,
-        num_workers=args.workers
+        num_workers=args.workers,
+        collate_fn=collate_fn  # Dùng collate_fn đơn giản ở trên
     )
 
-    print(f"Data loaded: {len(dataset_train)} images.")
-
+    # Optimizer setup
     param_dicts = [
         {"params": [p for n, p in model.named_parameters() if "backbone" not in n and p.requires_grad]},
         {
@@ -99,48 +131,38 @@ def main(args):
             "lr": args.lr_backbone,
         },
     ]
-
     optimizer = optim.AdamW(param_dicts, lr=args.lr, weight_decay=args.weight_decay)
     lr_scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs)
 
     print("Start training...")
     start_time = time.time()
-
     for epoch in range(args.start_epoch, args.epochs):
         train_one_epoch(model, optimizer, data_loader_train, device, epoch, print_freq=args.print_freq)
         lr_scheduler.step()
 
         if args.output_dir:
-            checkpoint_path = os.path.join(args.output_dir, f"checkpoint_epoch_{epoch}.pth")
             torch.save({
                 'model': model.state_dict(),
                 'optimizer': optimizer.state_dict(),
                 'epoch': epoch,
-                'args': args,
-            }, checkpoint_path)
-            torch.save({'model': model.state_dict()}, os.path.join(args.output_dir, "latest.pth"))
-            print(f"Saved checkpoint to {checkpoint_path}")
+            }, os.path.join(args.output_dir, f"checkpoint_epoch_{epoch}.pth"))
 
-    total_time = time.time() - start_time
-    print(f"Training time: {str(datetime.timedelta(seconds=int(total_time)))}")
+    print(f"Total time: {str(datetime.timedelta(seconds=int(time.time() - start_time)))}")
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Train DiffusionDet")
-    # ... (Các arguments giữ nguyên)
-    parser.add_argument('--config', default='resnet18.yaml', help='path to yaml config file')
-    parser.add_argument('--data-path', default='/kaggle/input/coco-2017-dataset/coco2017',
-                        help='path to coco dataset root')
-    parser.add_argument('--output-dir', default='./output', help='path to save checkpoints')
-    parser.add_argument('--resume', default='', help='resume from checkpoint')
-    parser.add_argument('--device', default='cuda', help='device to use for training / testing')
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--config', default='resnet18.yaml')
+    parser.add_argument('--data-path', default='/kaggle/input/coco-2017-dataset/coco2017')
+    parser.add_argument('--output-dir', default='./output')
+    parser.add_argument('--resume', default='')
+    parser.add_argument('--device', default='cuda')
     parser.add_argument('--batch-size', default=4, type=int)
-    parser.add_argument('--epochs', default=50, type=int)
+    parser.add_argument('--epochs', default=30, type=int)
     parser.add_argument('--start-epoch', default=0, type=int)
     parser.add_argument('--workers', default=2, type=int)
     parser.add_argument('--lr', default=2.5e-5, type=float)
     parser.add_argument('--lr-backbone', default=1e-5, type=float)
-
     parser.add_argument('--weight-decay', default=1e-4, type=float)
     parser.add_argument('--print-freq', default=50, type=int)
 
