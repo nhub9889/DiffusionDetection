@@ -19,17 +19,17 @@ class Encoder(nn.Module):
 
         if backbone_cfg.get('frozen_stage', -1) >= 0:
             self._freeze_stages(backbone_cfg['frozen_stage'])
-            feature_info = self.backbone.feature_info
-            in_channels = [x['num_chs'] for x in feature_info]
+        feature_info = self.backbone.feature_info
+        in_channels = [x['num_chs'] for x in feature_info]
 
-            print(f"Backbone '{backbone_cfg['name']}' has {in_channels}")
-            self.neck = None
+        print(f"Backbone '{backbone_cfg['name']}' has {in_channels}")
+        self.neck = None
 
-            if neck_cfg and neck_cfg['name'] == 'fpn':
-                self.neck = FeaturePyramidNetwork(
-                    in_channels_list=in_channels,
-                    out_channels=neck_cfg['out_channels']
-                )
+        if neck_cfg and neck_cfg['name'] == 'fpn':
+            self.neck = FeaturePyramidNetwork(
+                in_channels_list=in_channels,
+                out_channels=neck_cfg['out_channels']
+            )
 
     def _freeze_stages(self, frozen_stages):
         for param in self.backbone.parameters():
