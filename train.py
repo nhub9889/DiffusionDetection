@@ -36,18 +36,39 @@ def get_transform(train=True):
     return T.Compose(transforms)
 
 
-# Hàm collate cần xử lý dictionary target
 def collate_fn(batch):
     images = []
     targets = []
+
     for img, target in batch:
         images.append(img)
 
-        # Nếu target['boxes'] là tv_tensors, chuyển về tensor thường để tránh lỗi model
-        if isinstance(target['boxes'], tv_tensors.BoundingBoxes):
-            target['boxes'] = target['boxes'].as_subclass(torch.Tensor)
+        boxes_xyxy = target['boxes']
+        if isinstance(boxes_xyxy, tv_tensors.BoundingBoxes):
+            boxes_xyxy = boxes_xyxy.as_subclass(torch.Tensor)
 
-        targets.append(target)
+        h, w = img.shape[-2:]
+        img_size = torch.tensor([w, h, w, h], dtype=torch.float32)
+
+        if boxes_xyxy.shape[0] > 0:
+            cx = (boxes_xyxy[:, 0] + boxes_xyxy[:, 2]) / 2
+            cy = (boxes_xyxy[:, 1] + boxes_xyxy[:, 3]) / 2
+            bw = (boxes_xyxy[:, 2] - boxes_xyxy[:, 0])
+            bh = (boxes_xyxy[:, 3] - boxes_xyxy[:, 1])
+            boxes_cxcywh = torch.stack([cx, cy, bw, bh], dim=-1)
+
+            boxes_norm = boxes_cxcywh / img_size
+        else:
+            boxes_norm = torch.zeros((0, 4), dtype=torch.float32)
+
+        new_target = {
+            'labels': target['labels'],
+            'boxes_xyxy': boxes_xyxy,
+            'image_size_xyxy': img_size,
+            'image_size_xyxy_tgt': img_size
+        }
+
+        targets.append(new_target)
 
     images = torch.stack(images, dim=0)
     return images, targets
