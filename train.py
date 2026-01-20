@@ -31,7 +31,7 @@ def get_transform(train=True):
 
     # Quan trọng: Format box lại về dạng Tensor thuần để Model DiffusionDet hiểu
     # (Vì model của bạn có thể chưa hỗ trợ class tv_tensors.BoundingBoxes đầu vào)
-    transforms.append(T.SanitizeBoundingBox())
+    transforms.append(T.SanitizeBoundingBoxes())
 
     return T.Compose(transforms)
 
