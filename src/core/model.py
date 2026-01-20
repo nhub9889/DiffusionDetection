@@ -33,7 +33,7 @@ class DiffusionDetModel(nn.Module):
         loss_cfg = self.cfg['loss']
 
         self.matcher = HungarianMatcherLight(
-            cfg=None,
+            cfg=self.cfg,
             cost_class=matcher_cfg['cost_class'],
             cost_bbox=matcher_cfg['cost_bbox'],
             cost_giou=matcher_cfg['cost_giou'],
@@ -45,7 +45,7 @@ class DiffusionDetModel(nn.Module):
         self.matcher.focal_loss_gamma = matcher_cfg['gamma']
 
         self.criterion = SetCriterionLight(
-            cfg=None,
+            cfg=self.cfg,
             num_classes=head_cfg['num_classes'],
             matcher=self.matcher,
             weight_dict=loss_cfg['weight_dict'],

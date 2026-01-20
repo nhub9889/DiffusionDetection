@@ -19,7 +19,7 @@ def get_transform(train=True):
     transforms = []
     if train:
         transforms.append(T.RandomHorizontalFlip(0.5))
-        # T.RandomPhotometricDistort() # Có thể bật nếu muốn augment màu
+        T.RandomPhotometricDistort() # Có thể bật nếu muốn augment màu
 
     transforms.append(T.Resize((640, 640), antialias=True))
 
