@@ -20,8 +20,8 @@ class SetCriterionLight(nn.Module):
         self.use_focal = use_focal
 
         if self.use_focal:
-            self.focal_loss_alpha = cfg.matcher.alpha
-            self.focal_loss_gamma = cfg.matcher.alpha
+            self.focal_loss_alpha = cfg['matcher']['alpha']
+            self.focal_loss_gamma = cfg['matcher']['gamma']
         else:
             empty_weight = torch.ones(self.num_classes + 1)
             empty_weight[-1] = self.eos_coef
@@ -146,10 +146,10 @@ class HungarianMatcherLight(nn.Module):
         self.cost_bbox = cost_bbox
         self.cost_giou = cost_giou
         self.use_focal = use_focal
-        self.ota_k = cfg.matcher.ota_k
+        self.ota_k = cfg['matcher']['ota_k']
         if self.use_focal:
-            self.focal_loss_alpha = cfg.matcher.alpha
-            self.focal_loss_gamma = cfg.matcher.gamma
+            self.focal_loss_alpha = cfg['matcher']['alpha']
+            self.focal_loss_gamma = cfg['matcher']['gamma']
 
     @torch.no_grad()
     def forward(self, outputs, targets):
