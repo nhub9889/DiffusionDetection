@@ -20,7 +20,12 @@ class Encoder(nn.Module):
         if backbone_cfg.get('frozen_stage', -1) >= 0:
             self._freeze_stages(backbone_cfg['frozen_stage'])
         feature_info = self.backbone.feature_info
-        in_channels = [x['num_chs'] for x in feature_info]
+        all_channels = [x['num_chs'] for x in feature_info]
+        out_indices = backbone_cfg['out_indices']
+        if len(all_channels) >= max(out_indices) + 1:
+            in_channels = [all_channels[i] for i in out_indices]
+        else:
+            in_channels = all_channels
 
         print(f"Backbone '{backbone_cfg['name']}' has {in_channels}")
         self.neck = None
