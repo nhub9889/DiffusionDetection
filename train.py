@@ -181,7 +181,7 @@ if __name__ == "__main__":
     parser.add_argument('--epochs', default=30, type=int)
     parser.add_argument('--start-epoch', default=0, type=int)
     parser.add_argument('--workers', default=2, type=int)
-    parser.add_argument('--lr', default=2.5e-5, type=float)
+    parser.add_argument('--lr', default=2.5e-4, type=float)
     parser.add_argument('--lr-backbone', default=1e-5, type=float)
     parser.add_argument('--weight-decay', default=1e-4, type=float)
     parser.add_argument('--print-freq', default=50, type=int)

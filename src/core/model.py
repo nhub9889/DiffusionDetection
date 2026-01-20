@@ -95,7 +95,16 @@ class DiffusionDetModel(nn.Module):
         device = features[0].device
         num_proposals = self.cfg['head']['num_proposals']
 
-        current_boxes = torch.randn(batch_size, num_proposals, 4, device=device)
+        rand_boxes = torch.rand(batch_size, num_proposals, 4, device=device)
+        cx, cy, w, h = rand_boxes.unbind(-1)
+
+        x1 = cx - 0.5 * w
+        y1 = cy - 0.5 * h
+        x2 = cx + 0.5 * w
+        y2 = cy + 0.5 * h
+
+        current_boxes = torch.stack([x1, y1, x2, y2], dim=-1) * 640.0
+        current_boxes = current_boxes.clamp(min=0.0, max=640.0)
         steps = [0]
 
         results = []
@@ -103,7 +112,6 @@ class DiffusionDetModel(nn.Module):
             time_tensor = torch.full((batch_size,), t, device=device)
 
             pred_logits, pred_boxes = self.head(features, current_boxes, time_tensor)
-
             current_boxes = pred_boxes[-1]
             final_scores = pred_logits[-1].sigmoid()
 
