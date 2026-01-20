@@ -66,8 +66,16 @@ class DiffusionDetModel(nn.Module):
 
         if self.training:
             t = torch.randint(0, 1000, (batch_size,), device=images.device)
+            rand_boxes = torch.rand(batch_size, 100, 4, device=images.device)
+            cx, cy, w, h = rand_boxes.unbind(-1)
 
-            init_bboxes = torch.randn(batch_size, 100, 4, device=images.device)
+            x1 = cx - 0.5 * w
+            y1 = cy - 0.5 * h
+            x2 = cx + 0.5 * w
+            y2 = cy + 0.5 * h
+
+            init_bboxes = torch.stack([x1, y1, x2, y2], dim=-1) * 640.0
+            init_bboxes = init_bboxes.clamp(min=0.0, max=640.0)
             outputs_class, outputs_coords = self.head(features, init_bboxes, t)
 
             output_dict = {
@@ -75,7 +83,6 @@ class DiffusionDetModel(nn.Module):
                 'pred_boxes': outputs_coords[-1]
             }
 
-            # Calculate Loss
             loss_dict = self.criterion(output_dict, targets)
             return loss_dict
 
