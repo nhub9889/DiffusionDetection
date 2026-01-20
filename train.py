@@ -29,8 +29,6 @@ def get_transform(train=True):
         T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     ]))
 
-    # Quan trọng: Format box lại về dạng Tensor thuần để Model DiffusionDet hiểu
-    # (Vì model của bạn có thể chưa hỗ trợ class tv_tensors.BoundingBoxes đầu vào)
     transforms.append(T.SanitizeBoundingBoxes())
 
     return T.Compose(transforms)
@@ -63,6 +61,7 @@ def collate_fn(batch):
 
         new_target = {
             'labels': target['labels'],
+            'boxes': boxes_norm,
             'boxes_xyxy': boxes_xyxy,
             'image_size_xyxy': img_size,
             'image_size_xyxy_tgt': img_size
