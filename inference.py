@@ -22,35 +22,37 @@ def visualize_prediction(image_path, result, output_path, threshold=0.5):
     img = cv2.imread(image_path)
     h_orig, w_orig, _ = img.shape
 
-    pred_boxes = result['boxes'].cpu().numpy()  # (N, 4)
+    pred_boxes = result['boxes'].cpu().numpy()
+    if pred_boxes.ndim == 3: pred_boxes = pred_boxes[0]
+
     pred_scores = result['scores'].cpu().numpy()
+    if pred_scores.ndim == 3: pred_scores = pred_scores[0]
+
+    max_score = np.max(pred_scores)
+    print(f"\n[DEBUG] Max Confidence Score detected: {max_score:.4f}")
+
     scale_x = w_orig / 640.0
     scale_y = h_orig / 640.0
 
-    # 3. Duyệt qua các box
+    count = 0
     for i, box in enumerate(pred_boxes):
-        # Tìm class có điểm cao nhất cho box này
-        class_id = np.argmax(pred_scores[i])
-        score = pred_scores[i][class_id]
+        class_vector = pred_scores[i]
+        class_id = np.argmax(class_vector)
+        score = class_vector[class_id]
 
-        # Chỉ vẽ nếu điểm tin cậy > threshold
         if score > threshold:
-            # Scale box về kích thước gốc
+            count += 1
             x1 = int(box[0] * scale_x)
             y1 = int(box[1] * scale_y)
             x2 = int(box[2] * scale_x)
             y2 = int(box[3] * scale_y)
-
-            # Vẽ Box
-            cv2.rectangle(img, (x1, y1), (x2, y2), (0, 255, 0), 2)
-
-            # Vẽ Label
-            label = f"Cls {class_id}: {score:.2f}"
-            cv2.putText(img, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-
+            color = (0, 255, 0)
+            cv2.rectangle(img, (x1, y1), (x2, y2), color, 2)
+            label = f"{class_id}: {score:.2f}"
+            cv2.putText(img, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
 
     cv2.imwrite(output_path, img)
-    print(f"Saved result to {output_path}")
+    print(f"Saved result to {output_path} (Found {count} boxes)")
 
 
 def main(args):
